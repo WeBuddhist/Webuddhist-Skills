@@ -5,7 +5,7 @@ run `python3 tools/build-catalog.py` after adding or changing one.
 
 - **83** text-processing skills in [`rails/`](rails/README.md)
 - **4** library ingestion skills in [`library/`](library/README.md)
-- **18** org & engineering skills at the repo root
+- **19** org & engineering skills at the repo root
 
 The rails and library skills consolidate **219**
 skill files from 12 repos. See [`PROVENANCE.md`](PROVENANCE.md)
@@ -225,6 +225,7 @@ Pre-existing skills at the repo root — GitHub workflow, API and docs work. Not
 |---|---|
 | [`alternative_suggestions`](alternative_suggestions/SKILL.md) | Surfaces and compares alternative ways to implement the same thing (patterns, libraries, APIs, syntax) |
 | [`article-summarizer`](article-summarizer/SKILL.md) | Summarize web articles, blog posts, and news pages from URLs into concise TL;DR summaries with key takeaways |
+| [`buddhist-creator-ranking`](buddhist-creator-ranking/SKILL.md) | Collect the top Buddhist creators (people and organisations) on YouTube, Instagram and TikTok, look up their public follower counts without paid APIs, and… |
 | [`conversion-validation`](conversion-validation/SKILL.md) | Validate XML etext files using bdrc-etext-sync, then zip and upload to Google Drive on success |
 | [`create-sub-issues`](create-sub-issues/SKILL.md) | General-purpose agent to ANY GitHub Project, pick a project board, break down tasks |
 | [`design-engineer`](design-engineer/SKILL.md) | This skill encodes philosophy on UI polish, component design, animation decisions, and the invisible details that make software feel great inspire and… |
