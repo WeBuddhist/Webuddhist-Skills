@@ -10,6 +10,12 @@ from datetime import datetime, timedelta, timezone
 
 
 ORG = os.getenv("GITHUB_ORG", "WeBuddhist")
+# Orgs whose repos count as team activity. The team itself is read from ORG.
+ORGS = [
+    o.strip()
+    for o in os.getenv("GITHUB_ORGS", f"{ORG},OpenPecha,WeBuddhist-Data").split(",")
+    if o.strip()
+] or [ORG]
 WINDOW_DAYS = 1
 TEAM_SLUG = os.getenv("GITHUB_TEAM", "openpecha-dev-team")
 _ISO_TZ_OFFSET = "+00:00"
@@ -156,12 +162,12 @@ def _get_json_allow_missing(url, headers, params=None):
         return r.json()
 
 
-def get_org_repo_total(headers):
+def get_org_repo_total(headers, org):
     """
     Approximate total repos in the org (public + private when the API exposes both).
     Used only to report repos_skipped_stale_push after early exit.
     """
-    data = _get_json_allow_missing(f"https://api.github.com/orgs/{ORG}", headers)
+    data = _get_json_allow_missing(f"https://api.github.com/orgs/{org}", headers)
     if not data:
         return None
     pub = data.get("public_repos") or 0
@@ -171,11 +177,11 @@ def get_org_repo_total(headers):
     return pub + priv
 
 
-def _iter_org_repos(headers):
+def _iter_org_repos(headers, org):
     page = 1
     while True:
         data = _get_json_allow_missing(
-            f"https://api.github.com/orgs/{ORG}/repos",
+            f"https://api.github.com/orgs/{org}/repos",
             headers,
             {
                 "per_page": 100,
@@ -274,7 +280,6 @@ def fetch_team_commit_days_all_branches(members, window_start, window_end_exclus
     Returns (user -> days_with_commits_iso_set, user -> meta_dict).
     """
     headers = _api_headers()
-    org_repo_total = get_org_repo_total(headers)
     since_iso, until_iso = _window_to_since_until_iso(
         window_start, window_end_exclusive
     )
@@ -286,57 +291,41 @@ def fetch_team_commit_days_all_branches(members, window_start, window_end_exclus
     repos_scanned = 0
     branch_requests = 0
     skipped_repos = 0
-    stale_push_early_exit = False
+    repos_skipped_stale_push = 0
 
-    logger.info("Fetching commits (one org pass for all team members)")
-    for repo in _iter_org_repos(headers):
-        full = repo.get("full_name") or ""
-        if "/" not in full:
-            continue
-        if _repo_pushed_before_window(repo, window_start):
-            stale_push_early_exit = True
-            logger.info(
-                "Stale push cutoff — remaining repos omitted (sort=pushed desc): "
-                "%s pushed_at=%s",
-                full,
-                repo.get("pushed_at"),
-            )
-            break
-        owner, name = full.split("/", 1)
-        repos_scanned += 1
-        logger.info("repo %s: %s", repos_scanned, full)
-        branches = list(_iter_repo_branches(headers, owner, name))
-        if not branches:
-            skipped_repos += 1
-            continue
-        for br in branches:
-            branch_name = br.get("name")
-            if not branch_name:
+    for org in ORGS:
+        logger.info("Fetching commits from org %s (one pass for all team members)", org)
+        org_scanned = 0
+        stale_cutoff = False
+        for repo in _iter_org_repos(headers, org):
+            full = repo.get("full_name") or ""
+            if "/" not in full:
                 continue
-            branch_requests += 1
-            for commit_obj in _paginate_commits_for_branch(
-                headers, owner, name, branch_name, since_iso, until_iso
-            ):
-                login = _commit_author_login(commit_obj)
-                if not login or login not in team_logins:
-                    continue
-                sha = commit_obj.get("sha")
-                if not sha or sha in seen_shas[login]:
-                    continue
-                seen_shas[login].add(sha)
-                d = _committer_date(commit_obj)
-                if d is None:
-                    continue
-                if window_start <= d < window_end_exclusive:
-                    days[login].add(d.isoformat())
-                    breakdown[login][full][branch_name] += 1
-
-    if stale_push_early_exit and org_repo_total is not None:
-        repos_skipped_stale_push = max(0, org_repo_total - repos_scanned)
-    elif stale_push_early_exit:
-        repos_skipped_stale_push = None
-    else:
-        repos_skipped_stale_push = 0
+            if _repo_pushed_before_window(repo, window_start):
+                stale_cutoff = True
+                logger.info(
+                    "Stale push cutoff — remaining repos omitted (sort=pushed desc): "
+                    "%s pushed_at=%s",
+                    full,
+                    repo.get("pushed_at"),
+                )
+                break
+            org_scanned += 1
+            repos_scanned += 1
+            logger.info("repo %s: %s", repos_scanned, full)
+            n_branches = _scan_repo(
+                headers, full, since_iso, until_iso, window_start,
+                window_end_exclusive, team_logins, seen_shas, days, breakdown,
+            )
+            branch_requests += n_branches
+            if n_branches == 0:
+                skipped_repos += 1
+        if stale_cutoff:
+            total = get_org_repo_total(headers, org)
+            if total is not None and repos_skipped_stale_push is not None:
+                repos_skipped_stale_push += max(0, total - org_scanned)
+            else:
+                repos_skipped_stale_push = None
 
     def _breakdown_plain(u):
         out = {}
@@ -347,11 +336,10 @@ def fetch_team_commit_days_all_branches(members, window_start, window_end_exclus
 
     shared_meta = {
         "mode": "all_branches",
+        "orgs": ORGS,
         "repos_scanned": repos_scanned,
         "branch_requests": branch_requests,
         "repos_with_no_branches": skipped_repos,
-        "stale_push_early_exit": stale_push_early_exit,
-        "org_repo_total": org_repo_total,
         "repos_skipped_stale_push": repos_skipped_stale_push,
         "since": since_iso,
         "until": until_iso,
@@ -367,6 +355,37 @@ def fetch_team_commit_days_all_branches(members, window_start, window_end_exclus
     return days, meta_by_user
 
 
+def _scan_repo(
+    headers, full, since_iso, until_iso, window_start, window_end_exclusive,
+    team_logins, seen_shas, days, breakdown,
+):
+    """Count team commits on every branch of one repo. Returns branches scanned."""
+    owner, name = full.split("/", 1)
+    scanned = 0
+    for br in _iter_repo_branches(headers, owner, name):
+        branch_name = br.get("name")
+        if not branch_name:
+            continue
+        scanned += 1
+        for commit_obj in _paginate_commits_for_branch(
+            headers, owner, name, branch_name, since_iso, until_iso
+        ):
+            login = _commit_author_login(commit_obj)
+            if not login or login not in team_logins:
+                continue
+            sha = commit_obj.get("sha")
+            if not sha or sha in seen_shas[login]:
+                continue
+            seen_shas[login].add(sha)
+            d = _committer_date(commit_obj)
+            if d is None:
+                continue
+            if window_start <= d < window_end_exclusive:
+                days[login].add(d.isoformat())
+                breakdown[login][full][branch_name] += 1
+    return scanned
+
+
 def _breakdown_rows_sorted_by_commit_count(bd):
     """(repo, branch, n) sorted by n descending, then repo and branch name."""
     rows = []
@@ -379,23 +398,27 @@ def _breakdown_rows_sorted_by_commit_count(bd):
 
 def _search_last_commit_date(headers, user):
     """
-    Most recent commit by user in the org via /search/commits (default branches
+    Most recent commit by user across ORGS via /search/commits (default branches
     only), or None if nothing is found.
     """
-    data = _get_json_allow_missing(
-        "https://api.github.com/search/commits",
-        headers,
-        {
-            "q": f"author:{user} org:{ORG}",
-            "sort": "committer-date",
-            "order": "desc",
-            "per_page": 1,
-        },
-    )
-    items = (data or {}).get("items") or []
-    if not items:
-        return None
-    return _committer_date(items[0])
+    found = []
+    for org in ORGS:
+        data = _get_json_allow_missing(
+            "https://api.github.com/search/commits",
+            headers,
+            {
+                "q": f"author:{user} org:{org}",
+                "sort": "committer-date",
+                "order": "desc",
+                "per_page": 1,
+            },
+        )
+        items = (data or {}).get("items") or []
+        if items:
+            d = _committer_date(items[0])
+            if d:
+                found.append(d)
+    return max(found) if found else None
 
 
 def _plural(n, word):
@@ -438,6 +461,7 @@ def run_monitor():
     window_dates = [
         (start_d + timedelta(days=i)).isoformat() for i in range(WINDOW_DAYS)
     ]
+    logger.info("Orgs: %s", ", ".join(ORGS))
     logger.info("Window (01:00 IST days): %s (exclusive of today, %s days)", date_range, WINDOW_DAYS)
     days_by_user, meta_by_user = fetch_team_commit_days_all_branches(
         members, start_d, end_d
@@ -489,7 +513,7 @@ def run_monitor():
         for user, total, bd in active:
             lines.append(f"{_display_name(user)} — {_plural(total, 'commit')}")
             for repo, branch, n in _breakdown_rows_sorted_by_commit_count(bd):
-                repo_name = repo.split("/", 1)[-1]
+                repo_name = repo if len(ORGS) > 1 else repo.split("/", 1)[-1]
                 lines.append(f"- {repo_name} @ `{branch}`: {n}")
             lines.append("")
 

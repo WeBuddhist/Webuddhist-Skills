@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_ORG: WeBuddhist
+      # Comma-separated orgs whose repos count as team commits. Override with a MONITOR_ORGS repo variable.
+      GITHUB_ORGS: ${{ vars.MONITOR_ORGS || 'WeBuddhist,OpenPecha,WeBuddhist-Data' }}
       # Override with a MONITOR_TEAM repo variable: Settings > Secrets and variables > Actions > Variables.
       GITHUB_TEAM: ${{ vars.MONITOR_TEAM || 'openpecha-dev-team' }}
     defaults:
@@ -56,6 +58,13 @@ jobs:
             echo "::error::Token cannot read $GITHUB_ORG/$GITHUB_TEAM (HTTP $team). Needs repo + read:org scope, $GITHUB_ORG membership, and SSO authorization if enabled."
             exit 1
           fi
+          for o in ${GITHUB_ORGS//,/ }; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "${auth[@]}" "https://api.github.com/orgs/$o/repos?per_page=1&type=all")
+            echo "Repos in $o: HTTP $code"
+            if [ "$code" != "200" ]; then
+              echo "::warning::Token cannot list $o repos (HTTP $code); commits there will be missed."
+            fi
+          done
 
       - name: Run monitor
         env:
