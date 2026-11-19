@@ -7,6 +7,7 @@
    - `GITHUB_TOKEN`: Your Personal Access Token.
    - `GITHUB_ORG`: Organization that owns the team (default `WeBuddhist`).
    - `GITHUB_ORGS`: Comma-separated orgs whose repos count as commits (default `WeBuddhist,OpenPecha,WeBuddhist-Data`). Used for both the daily list and "last commit N days ago".
+   - `MONITOR_LOOKBACK_DAYS`: How many days back to scan all branches for "last commit N days ago" (default 30). Older than that falls back to default-branch search.
 
 ## Automation
 - **Cron**: `30 4 * * *` (Runs daily at 10:00 AM IST; adjust for UTC timezone offset)

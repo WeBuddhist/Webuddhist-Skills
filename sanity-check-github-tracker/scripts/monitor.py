@@ -17,6 +17,8 @@ ORGS = [
     if o.strip()
 ] or [ORG]
 WINDOW_DAYS = 1
+# How far back to scan all branches when working out "last commit N days ago".
+LOOKBACK_DAYS = int(os.getenv("MONITOR_LOOKBACK_DAYS", "30"))
 TEAM_SLUG = os.getenv("GITHUB_TEAM", "openpecha-dev-team")
 _ISO_TZ_OFFSET = "+00:00"
 # A "day" runs 01:00 IST to 01:00 IST the next day.
@@ -192,6 +194,10 @@ def _iter_org_repos(headers, org):
             },
         )
         if not data:
+            if page == 1:
+                logger.warning(
+                    "No repos visible in org %s — token may lack access (SSO?)", org
+                )
             break
         yield from data
         if len(data) < 100:
@@ -396,6 +402,41 @@ def _breakdown_rows_sorted_by_commit_count(bd):
     return rows
 
 
+def _scan_last_commit_dates(headers, logins, end_exclusive, lookback_days):
+    """
+    Newest commit day per login over the last lookback_days, across every branch
+    of every repo in ORGS pushed in that period. Catches feature-branch work
+    that /search/commits (default branches only) misses.
+    """
+    logins = set(logins)
+    newest = {}
+    start = end_exclusive - timedelta(days=lookback_days)
+    since_iso, until_iso = _window_to_since_until_iso(start, end_exclusive)
+    for org in ORGS:
+        for repo in _iter_org_repos(headers, org):
+            full = repo.get("full_name") or ""
+            if "/" not in full:
+                continue
+            if _repo_pushed_before_window(repo, start):
+                break
+            owner, name = full.split("/", 1)
+            for br in _iter_repo_branches(headers, owner, name):
+                branch_name = br.get("name")
+                if not branch_name:
+                    continue
+                for commit_obj in _paginate_commits_for_branch(
+                    headers, owner, name, branch_name, since_iso, until_iso
+                ):
+                    login = _commit_author_login(commit_obj)
+                    if login not in logins:
+                        continue
+                    d = _committer_date(commit_obj)
+                    if d and (login not in newest or d > newest[login]):
+                        newest[login] = d
+    logger.info("Lookback scan (%s days) newest commits: %s", lookback_days, newest)
+    return newest
+
+
 def _search_last_commit_date(headers, user):
     """
     Most recent commit by user across ORGS via /search/commits (default branches
@@ -499,7 +540,17 @@ def run_monitor():
             if newest > (state[user].get("last_commit_date") or ""):
                 state[user]["last_commit_date"] = newest
 
-    lines = ["**Active**", ""]
+    last_day = end_d - timedelta(days=1)
+    if start_d == last_day:
+        checked = last_day.strftime("%a %d %b %Y")
+    else:
+        checked = f"{start_d.strftime('%d %b')} – {last_day.strftime('%d %b %Y')}"
+    lines = [
+        f"**Commit check for {checked}** (01:00 IST – 01:00 IST)",
+        "",
+        "**Active**",
+        "",
+    ]
     active = []
     for user in members:
         bd = meta_by_user[user].get("commit_breakdown") or {}
@@ -527,10 +578,13 @@ def run_monitor():
     else:
         headers = _api_headers()
         today = _today_work_day()
+        scanned = _scan_last_commit_dates(headers, inactive, end_d, LOOKBACK_DAYS)
         entries = []
         for user in inactive:
             known = state[user].get("last_commit_date")
-            candidates = [d for d in (_search_last_commit_date(headers, user),) if d]
+            candidates = [
+                d for d in (scanned.get(user), _search_last_commit_date(headers, user)) if d
+            ]
             if known:
                 candidates.append(datetime.fromisoformat(known).date())
             last = max(candidates) if candidates else None
