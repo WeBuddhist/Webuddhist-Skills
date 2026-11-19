@@ -11,6 +11,8 @@ description: >
   translation", "push this to the library", "publish the English", "send it to the
   backend", "why did the upload fail", "re-upload after the re-cut".
 profile: rails-vault
+replaced_by:
+  - library-upload
 supersedes:
   - 21-taras-rails/4-SYSTEM/Skills/translation-upload/SKILL.md
 ---

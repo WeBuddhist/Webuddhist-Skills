@@ -13,6 +13,8 @@ description: >
   <small> marks to the backend", "annotate the yigchung spans", "the small text
   should be an annotation".
 profile: rails-vault
+replaced_by:
+  - library-upload
 supersedes:
   - Dzongsar-dolma-bumtsok-rails/3-SKILLS/yigchung-upload/SKILL.md
 ---

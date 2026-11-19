@@ -12,6 +12,8 @@ description: >
   commentary", "push the commentary to the library", "prepare the commentary
   payload", "why did the commentary upload fail".
 profile: rails-vault
+replaced_by:
+  - library-upload
 supersedes:
   - Dzongsar-dolma-bumtsok-rails/3-SKILLS/commentary-upload/SKILL.md
   - KF-project/heart-sutra-rails/4-SYSTEM/Skills/commentary-upload/SKILL.md

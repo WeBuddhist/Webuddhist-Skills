@@ -44,7 +44,7 @@ GROUPS = [
                        "gemini-article-polish"]),
  ("Plans", ["plan-scaffold","plan-schedule","plan-day-generate","plan-day-translate",
                     "plan-day-qa","plan-day-package"]),
- ("Publishing",     ["translation-alignment-check","translation-upload"]),
+ ("Publishing",     ["translation-alignment-check","library-upload","convert-audio","otr-to-mapping"]),
  ("Authoring skills", ["create-skill"]),
 ]
 

@@ -3,12 +3,12 @@
 Every skill in this repo. Generated from each skill's own frontmatter —
 run `python3 tools/build-catalog.py` after adding or changing one.
 
-- **83** text-processing skills in [`rails/`](rails/README.md)
+- **82** text-processing skills in [`rails/`](rails/README.md)
 - **4** library ingestion skills in [`library/`](library/README.md)
 - **19** org & engineering skills at the repo root
 
-The rails and library skills consolidate **219**
-skill files from 12 repos. See [`PROVENANCE.md`](PROVENANCE.md)
+The rails and library skills consolidate **216**
+skill files from 13 repos. See [`PROVENANCE.md`](PROVENANCE.md)
 for the full mapping. Retired skills are kept in [`deprecated/`](deprecated/README.md) for
 reference and are never installed.
 
@@ -171,7 +171,9 @@ reference and are never installed.
 | Skill | Does | Absorbs |
 |---|---|---|
 | [`translation-alignment-check`](rails/translation-alignment-check/SKILL.md) | Report-only structural check that every translation of a text mirrors its root exactly — same segment references in the same order, same line count per… | 1 |
-| [`translation-upload`](rails/translation-upload/SKILL.md) | Lint, parse and upload one finished translation to the library backend as an edition of its own text — aligned segment-for-segment to the published root… | 1 |
+| [`library-upload`](rails/library-upload/SKILL.md) | Keep the WeBuddhist library in step with a rails vault, per environment (dev, prod, …): see each note's state, upload what is missing, patch what changed… | 5 |
+| [`convert-audio`](rails/convert-audio/SKILL.md) | Convert recitation recordings (WAV/AIFF) to small AAC .m4a files with exactly the same length, on Windows or macOS, with nothing to install | 1 |
+| [`otr-to-mapping`](rails/otr-to-mapping/SKILL.md) | Fill an audio note's Mapping table (Start/End per root-text block) from its oTranscribe .otr timestamps, check it with the audio linter, and prepare the… | 1 |
 
 ### Authoring skills
 
@@ -186,21 +188,22 @@ reference and are never installed.
 | [`aligned-corpus-intake`](rails/aligned-corpus-intake/SKILL.md) | Turn a human-made, human-segmented and human-aligned corpus — OpenPecha API downloads and Dzongsar-style Google-Docs exports (.docx Tsadel/Tsadrel… | 3 |
 | [`bilingual-to-transclusion`](rails/bilingual-to-transclusion/SKILL.md) | Convert a translation that carries the root text inline — root lines, a separator such as <br>, then the translation, block by block — into the vault's… | 1 |
 | [`commentary-realign`](rails/commentary-realign/SKILL.md) | Make a copy of a commentary that is aligned to one root text, re-aligned to a second root text that contains the same root passages (possibly several… | 1 |
-| [`commentary-upload`](rails/commentary-upload/SKILL.md) | Lint, parse and upload one commentary to the library backend as its own text (commentary_of the root), an edition whose segmentation references are its… | 4 |
 | [`edition-spacing-fix`](rails/edition-spacing-fix/SKILL.md) | Scan a published edition on the library backend for spacing errors — words run together ("whomI", "forthlike", "ofthe"), no space after punctuation… | 1 |
-| [`root-text-upload`](rails/root-text-upload/SKILL.md) | Lint, parse and upload one root text to the library backend as a text, an edition whose segmentation references are its block IDs, and a table of contents | 4 |
 | [`translation-segment-check`](rails/translation-segment-check/SKILL.md) | Report-only, segment-by-segment check that every block of a translation is (a) aligned to the right root segment and (b) a correct translation of it, line… | 1 |
 | [`wiki-toc-import`](rails/wiki-toc-import/SKILL.md) | Take a text's table of contents from its proofread Wikisource Index page (or, failing that, its Wikipedia article) and apply it to the source files as… | 3 |
 | [`yigchung-transfer`](rails/yigchung-transfer/SKILL.md) | Carry the <small>…</small> yigchung (small-script rubric) marks of a root text over to a block-aligned translation, so the translation marks the same… | 1 |
-| [`yigchung-upload`](rails/yigchung-upload/SKILL.md) | Parse the <small>…</small> yigchung (small-script rubric) marks out of an already-uploaded root text or translation, turn each one into a span over the… | 1 |
 | [`zh-track-prompt`](rails/zh-track-prompt/SKILL.md) | Build or revise the Chinese (Traditional) prompt of a Chinese translation track (zh-academic, zh-children, any zh-<descriptor>): a Chinese-only system… | 3 |
 
 ### Deprecated — kept for reference, not installed
 
 | Skill | Replaced by |
 |---|---|
+| [`commentary-upload`](deprecated/commentary-upload/SKILL.md) | `library-upload` |
+| [`root-text-upload`](deprecated/root-text-upload/SKILL.md) | `library-upload` |
 | [`segment-commentary`](deprecated/segment-commentary/SKILL.md) | `commentary-pipeline`, `commentary-segment`, `commentary-resegment` |
 | [`toc-generate`](deprecated/toc-generate/SKILL.md) | `commentary-toc-extract`, `commentary-toc-ingest`, `root-text-toc-extract` |
+| [`translation-upload`](deprecated/translation-upload/SKILL.md) | `library-upload` |
+| [`yigchung-upload`](deprecated/yigchung-upload/SKILL.md) | `library-upload` |
 
 ---
 

@@ -13,7 +13,7 @@ segmentation + TOC workflows replaced.)
 ---
 
 
-**87 canonical skills, consolidated from 219 source files across 12 repos.**
+**86 canonical skills, consolidated from 216 source files across 13 repos.**
 
 ### `library/annotate-root-text`
 
@@ -189,14 +189,11 @@ segmentation + TOC workflows replaced.)
 
 - `Nalanda-texts-rails/4-SYSTEM/Skills/toc-tree-ingest/SKILL.md`
 
-### `rails/commentary-upload`
+### `rails/convert-audio`
 
-*profile: `rails-vault`* — absorbs 4 source file(s):
+*profile: `any`* — absorbs 1 source file(s):
 
-- `Dzongsar-dolma-bumtsok-rails/3-SKILLS/commentary-upload/SKILL.md`
-- `KF-project/heart-sutra-rails/4-SYSTEM/Skills/commentary-upload/SKILL.md`
-- `KF-project/daimond-sutra-rails/4-SYSTEM/Skills/commentary-upload/SKILL.md`
-- `KF-project/summary-of-the-perfection-of-wisdom-rails/4-SYSTEM/Skills/commentary-upload/SKILL.md`
+- `Liturgy-rails/4-SYSTEM/Skills/Convert-Audio/SKILL.md`
 
 ### `rails/create-skill`
 
@@ -341,6 +338,16 @@ segmentation + TOC workflows replaced.)
 *profile: `rails-vault`* — absorbs 0 source file(s):
 
 
+### `rails/library-upload`
+
+*profile: `rails-vault`* — absorbs 5 source file(s):
+
+- `rails/root-text-upload/SKILL.md`
+- `rails/translation-upload/SKILL.md`
+- `rails/commentary-upload/SKILL.md`
+- `rails/yigchung-upload/SKILL.md`
+- `Liturgy-rails/4-SYSTEM/Skills/Library-Upload/SKILL.md`
+
 ### `rails/local-wiki-article`
 
 *profile: `rails-vault`* — absorbs 3 source file(s):
@@ -363,6 +370,12 @@ segmentation + TOC workflows replaced.)
 *profile: `rails-vault`* — absorbs 1 source file(s):
 
 - `bodhisattvacharyavatara-rails/4-SYSTEM/Skills/multilevel-summary/SKILL.md`
+
+### `rails/otr-to-mapping`
+
+*profile: `rails-vault`* — absorbs 1 source file(s):
+
+- `Liturgy-rails/4-SYSTEM/Skills/OTR-To-Mapping/SKILL.md`
 
 ### `rails/outline-extract`
 
@@ -482,15 +495,6 @@ segmentation + TOC workflows replaced.)
 
 - `Nalanda-texts-rails/4-SYSTEM/Skills/root-text-segmentation/SKILL.md`
 
-### `rails/root-text-upload`
-
-*profile: `rails-vault`* — absorbs 4 source file(s):
-
-- `Dzongsar-dolma-bumtsok-rails/3-SKILLS/root-text-upload/SKILL.md`
-- `KF-project/heart-sutra-rails/4-SYSTEM/Skills/root-text-upload/SKILL.md`
-- `KF-project/daimond-sutra-rails/4-SYSTEM/Skills/root-text-upload/SKILL.md`
-- `KF-project/summary-of-the-perfection-of-wisdom-rails/4-SYSTEM/Skills/root-text-upload/SKILL.md`
-
 ### `rails/section-summary`
 
 *profile: `rails-vault`* — absorbs 6 source file(s):
@@ -586,12 +590,6 @@ segmentation + TOC workflows replaced.)
 
 - `21-taras-rails/4-SYSTEM/Skills/translation-segment-check/SKILL.md`
 
-### `rails/translation-upload`
-
-*profile: `rails-vault`* — absorbs 1 source file(s):
-
-- `21-taras-rails/4-SYSTEM/Skills/translation-upload/SKILL.md`
-
 ### `rails/vault-audit`
 
 *profile: `?`* — absorbs 0 source file(s):
@@ -642,12 +640,6 @@ segmentation + TOC workflows replaced.)
 
 - `Dzongsar-dolma-bumtsok-rails/3-SKILLS/yigchung-transfer/SKILL.md`
 
-### `rails/yigchung-upload`
-
-*profile: `rails-vault`* — absorbs 1 source file(s):
-
-- `Dzongsar-dolma-bumtsok-rails/3-SKILLS/yigchung-upload/SKILL.md`
-
 ### `rails/zeroshot-translate`
 
 *profile: `any`* — absorbs 3 source file(s):
@@ -676,6 +668,24 @@ segmentation + TOC workflows replaced.)
 Retired skills, kept in `deprecated/` for reference. What they absorbed is now
 covered by the skills named under *replaced by*.
 
+### `deprecated/commentary-upload`
+
+*replaced by `rails/library-upload`* — had absorbed 4 source file(s):
+
+- `Dzongsar-dolma-bumtsok-rails/3-SKILLS/commentary-upload/SKILL.md`
+- `KF-project/heart-sutra-rails/4-SYSTEM/Skills/commentary-upload/SKILL.md`
+- `KF-project/daimond-sutra-rails/4-SYSTEM/Skills/commentary-upload/SKILL.md`
+- `KF-project/summary-of-the-perfection-of-wisdom-rails/4-SYSTEM/Skills/commentary-upload/SKILL.md`
+
+### `deprecated/root-text-upload`
+
+*replaced by `rails/library-upload`* — had absorbed 4 source file(s):
+
+- `Dzongsar-dolma-bumtsok-rails/3-SKILLS/root-text-upload/SKILL.md`
+- `KF-project/heart-sutra-rails/4-SYSTEM/Skills/root-text-upload/SKILL.md`
+- `KF-project/daimond-sutra-rails/4-SYSTEM/Skills/root-text-upload/SKILL.md`
+- `KF-project/summary-of-the-perfection-of-wisdom-rails/4-SYSTEM/Skills/root-text-upload/SKILL.md`
+
 ### `deprecated/segment-commentary`
 
 *replaced by `rails/commentary-pipeline`, `rails/commentary-segment`, `rails/commentary-resegment`* — had absorbed 6 source file(s):
@@ -699,3 +709,15 @@ covered by the skills named under *replaced by*.
 - `bodhisattvacharyavatara-rails/4-SYSTEM/Skills/toc-tree-ingest/SKILL.md`
 - `21-taras-rails/4-SYSTEM/Skills/TOC-to-HEADING/SKILL.md`
 - `bodhisattvacharyavatara-rails/4-SYSTEM/TOC-GENERATOR/SKILL.md`
+
+### `deprecated/translation-upload`
+
+*replaced by `rails/library-upload`* — had absorbed 1 source file(s):
+
+- `21-taras-rails/4-SYSTEM/Skills/translation-upload/SKILL.md`
+
+### `deprecated/yigchung-upload`
+
+*replaced by `rails/library-upload`* — had absorbed 1 source file(s):
+
+- `Dzongsar-dolma-bumtsok-rails/3-SKILLS/yigchung-upload/SKILL.md`

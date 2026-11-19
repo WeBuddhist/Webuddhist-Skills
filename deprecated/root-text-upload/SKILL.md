@@ -12,6 +12,8 @@ description: >
   text", "push the Tibetan to the library", "publish the source text", "upload
   this sadhana", "why did the root upload fail", "re-upload after the re-cut".
 profile: rails-vault
+replaced_by:
+  - library-upload
 supersedes:
   - Dzongsar-dolma-bumtsok-rails/3-SKILLS/root-text-upload/SKILL.md
   - KF-project/heart-sutra-rails/4-SYSTEM/Skills/root-text-upload/SKILL.md
