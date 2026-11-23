@@ -9,7 +9,7 @@
    - `GITHUB_ORG`: Organization that owns the team (default `WeBuddhist`).
    - `GITHUB_ORGS`: Comma-separated orgs whose repos count as commits (default `WeBuddhist,OpenPecha,WeBuddhist-Data`). Used for both the daily list and "last commit N days ago".
    - `GITHUB_TEAM`: Team whose members are tracked (default `openpecha-dev-team`).
-   - `MONITOR_LOOKBACK_DAYS`: How many days back to scan all branches for "last commit N days ago" (default 30). Older than that falls back to default-branch search.
+   - `MONITOR_LOOKBACK_DAYS`: How many days back to scan all branches for "last commit N days ago" (default 5). Older than that falls back to default-branch search.
 
 ## Automation
 - **Render cron job** (`render.yaml` at the repo root): runs `python monitor.py` daily at `30 4 * * *` UTC (10:00 IST) and posts to Discord. Logs show in the Render dashboard.

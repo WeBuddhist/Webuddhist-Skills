@@ -20,7 +20,7 @@ services:
       - key: GITHUB_TEAM
         value: openpecha-dev-team
       - key: MONITOR_LOOKBACK_DAYS
-        value: "30"
+        value: "5"
       # Secrets: Render asks for these when the Blueprint is created.
       - key: GITHUB_TOKEN
         sync: false

@@ -19,7 +19,7 @@ ORGS = [
 ] or [ORG]
 WINDOW_DAYS = 1
 # How far back to scan all branches when working out "last commit N days ago".
-LOOKBACK_DAYS = int(os.getenv("MONITOR_LOOKBACK_DAYS", "30"))
+LOOKBACK_DAYS = int(os.getenv("MONITOR_LOOKBACK_DAYS", "5"))
 TEAM_SLUG = os.getenv("GITHUB_TEAM", "openpecha-dev-team")
 _ISO_TZ_OFFSET = "+00:00"
 # A "day" runs 01:00 IST to 01:00 IST the next day.
@@ -413,6 +413,12 @@ def _scan_last_commit_dates(headers, logins, end_exclusive, lookback_days):
     newest = {}
     start = end_exclusive - timedelta(days=lookback_days)
     since_iso, until_iso = _window_to_since_until_iso(start, end_exclusive)
+    logger.info(
+        "Lookback scan: last %s days, all branches, for %d inactive members",
+        lookback_days,
+        len(logins),
+    )
+    scanned = 0
     for org in ORGS:
         for repo in _iter_org_repos(headers, org):
             full = repo.get("full_name") or ""
@@ -420,6 +426,8 @@ def _scan_last_commit_dates(headers, logins, end_exclusive, lookback_days):
                 continue
             if _repo_pushed_before_window(repo, start):
                 break
+            scanned += 1
+            logger.info("lookback repo %s: %s", scanned, full)
             owner, name = full.split("/", 1)
             for br in _iter_repo_branches(headers, owner, name):
                 branch_name = br.get("name")
@@ -581,7 +589,9 @@ def run_monitor():
         today = _today_work_day()
         scanned = _scan_last_commit_dates(headers, inactive, end_d, LOOKBACK_DAYS)
         entries = []
+        logger.info("Searching default branches for %d inactive members", len(inactive))
         for user in inactive:
+            logger.info("search last commit: %s", user)
             known = state[user].get("last_commit_date")
             candidates = [
                 d for d in (scanned.get(user), _search_last_commit_date(headers, user)) if d
