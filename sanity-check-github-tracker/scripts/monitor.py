@@ -403,18 +403,39 @@ def _breakdown_rows_sorted_by_commit_count(bd):
     return rows
 
 
-def _scan_last_commit_dates(headers, logins, end_exclusive, lookback_days):
+def _commit_info(commit_obj, repo_full, branch):
+    """Summary of one commit for the report: when, where, first message line, link."""
+    commit = commit_obj.get("commit") or {}
+    when = _parse_github_iso_datetime((commit.get("committer") or {}).get("date"))
+    if when is None:
+        return None
+    message = (commit.get("message") or "").strip().splitlines()
+    return {
+        "when": when,
+        "date": _work_day(when),
+        "repo": repo_full,
+        "branch": branch,
+        "message": message[0][:80] if message else "",
+        "url": commit_obj.get("html_url"),
+    }
+
+
+def _scan_lookback(headers, logins, end_exclusive, lookback_days):
     """
-    Newest commit day per login over the last lookback_days, across every branch
-    of every repo in ORGS pushed in that period. Catches feature-branch work
-    that /search/commits (default branches only) misses.
+    One pass over every branch of every repo in ORGS pushed in the last
+    lookback_days. Catches feature-branch work that /search/commits (default
+    branches only) misses.
+
+    Returns (login -> newest commit info, login -> {day_iso: commit count}).
     """
     logins = set(logins)
     newest = {}
+    daily = {u: defaultdict(int) for u in logins}
+    seen = {u: set() for u in logins}
     start = end_exclusive - timedelta(days=lookback_days)
     since_iso, until_iso = _window_to_since_until_iso(start, end_exclusive)
     logger.info(
-        "Lookback scan: last %s days, all branches, for %d inactive members",
+        "Lookback scan: last %s days, all branches, for %d members",
         lookback_days,
         len(logins),
     )
@@ -439,17 +460,29 @@ def _scan_last_commit_dates(headers, logins, end_exclusive, lookback_days):
                     login = _commit_author_login(commit_obj)
                     if login not in logins:
                         continue
-                    d = _committer_date(commit_obj)
-                    if d and (login not in newest or d > newest[login]):
-                        newest[login] = d
-    logger.info("Lookback scan (%s days) newest commits: %s", lookback_days, newest)
-    return newest
+                    sha = commit_obj.get("sha")
+                    if not sha or sha in seen[login]:
+                        continue
+                    seen[login].add(sha)
+                    info = _commit_info(commit_obj, full, branch_name)
+                    if info is None:
+                        continue
+                    if start <= info["date"] < end_exclusive:
+                        daily[login][info["date"].isoformat()] += 1
+                    if login not in newest or info["when"] > newest[login]["when"]:
+                        newest[login] = info
+    logger.info(
+        "Lookback scan (%s days) newest commits: %s",
+        lookback_days,
+        {u: i["date"].isoformat() for u, i in newest.items()},
+    )
+    return newest, daily
 
 
-def _search_last_commit_date(headers, user):
+def _search_last_commit(headers, user):
     """
     Most recent commit by user across ORGS via /search/commits (default branches
-    only), or None if nothing is found.
+    only), as commit info, or None if nothing is found.
     """
     found = []
     for org in ORGS:
@@ -465,10 +498,11 @@ def _search_last_commit_date(headers, user):
         )
         items = (data or {}).get("items") or []
         if items:
-            d = _committer_date(items[0])
-            if d:
-                found.append(d)
-    return max(found) if found else None
+            repo_full = (items[0].get("repository") or {}).get("full_name") or org
+            info = _commit_info(items[0], repo_full, None)
+            if info:
+                found.append(info)
+    return max(found, key=lambda i: i["when"]) if found else None
 
 
 def _plural(n, word):
@@ -486,6 +520,131 @@ def _days_ago_text(last_date, today):
     if days <= 0:
         return "last commit today"
     return f"last commit {_plural(days, 'day')} ago"
+
+
+def _last_commit_line(user, info, today):
+    """One report line for an inactive developer, with their last commit if known."""
+    if info is None:
+        return f"- {_display_name(user)} — no commits found"
+    parts = [f"{_days_ago_text(info['date'], today)} ({info['date'].strftime('%a %d %b')})"]
+    if info.get("repo"):
+        where = f"`{info['repo']}`"
+        if info.get("branch"):
+            where += f" @ `{info['branch']}`"
+        parts.append(where)
+    if info.get("message"):
+        msg = info["message"].replace("`", "'").replace("*", "").replace("_", " ")
+        parts.append(f'"{msg}"')
+    if info.get("url"):
+        # <...> stops Discord from unfurling a preview card for every link.
+        parts.append(f"[view](<{info['url']}>)")
+    return f"- {_display_name(user)} — " + " · ".join(parts)
+
+
+def _state_commit_info(state_user):
+    """Last commit saved by an earlier run, if state.json survived (local runs)."""
+    saved = state_user.get("last_commit") or {}
+    raw_date = saved.get("date") or state_user.get("last_commit_date")
+    if not raw_date:
+        return None
+    d = datetime.fromisoformat(raw_date).date()
+    return {
+        "when": datetime(d.year, d.month, d.day, tzinfo=_DAY_TZ),
+        "date": d,
+        "repo": saved.get("repo"),
+        "branch": saved.get("branch"),
+        "message": saved.get("message") or "",
+        "url": saved.get("url"),
+    }
+
+
+# Dark chart surface (Discord is mostly viewed in dark mode) and a one-hue blue
+# ramp, dark -> bright as commit counts rise; zero is the neutral gray.
+_CHART_SURFACE = "#1a1a19"
+_CHART_ZERO = "#383835"
+_CHART_INK = "#e8e6e1"
+_CHART_MUTED = "#a3a19b"
+_CHART_BINS = [  # (lowest count, fill, cell text colour, legend label)
+    (1, "#184f95", _CHART_INK, "1"),
+    (2, "#2a78d6", _CHART_INK, "2–3"),
+    (4, "#6da7ec", _CHART_SURFACE, "4–6"),
+    (7, "#b7d3f6", _CHART_SURFACE, "7+"),
+]
+
+
+def _chart_bin(n):
+    if n <= 0:
+        return _CHART_ZERO, _CHART_MUTED
+    fill, text = _CHART_BINS[0][1], _CHART_BINS[0][2]
+    for low, f, t, _ in _CHART_BINS:
+        if n >= low:
+            fill, text = f, t
+    return fill, text
+
+
+def build_activity_chart(members, daily, days):
+    """
+    Heatmap PNG: one row per developer, one column per day, cell = commits.
+    Returns PNG bytes, or None if matplotlib is unavailable.
+    """
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        from matplotlib.patches import Patch, Rectangle
+    except ImportError:
+        logger.warning("matplotlib not installed; skipping activity chart")
+        return None
+    import io
+
+    day_keys = [d.isoformat() for d in days]
+    totals = {u: sum(daily.get(u, {}).get(k, 0) for k in day_keys) for u in members}
+    rows = sorted(members, key=lambda u: (-totals[u], u.lower()))
+
+    n_rows, n_cols = len(rows), len(days)
+    fig, ax = plt.subplots(figsize=(2.4 + 0.95 * n_cols, 1.5 + 0.34 * n_rows), dpi=160)
+    fig.patch.set_facecolor(_CHART_SURFACE)
+    ax.set_facecolor(_CHART_SURFACE)
+
+    for r, user in enumerate(rows):
+        for c, key in enumerate(day_keys):
+            n = daily.get(user, {}).get(key, 0)
+            fill, text = _chart_bin(n)
+            # 0.92 cell leaves a surface-coloured gap between neighbours.
+            ax.add_patch(Rectangle((c + 0.04, r + 0.04), 0.92, 0.92, color=fill, lw=0))
+            if n:
+                ax.text(c + 0.5, r + 0.5, str(n), ha="center", va="center",
+                        fontsize=8, color=text)
+        ax.text(n_cols + 0.25, r + 0.5, str(totals[user]), ha="left", va="center",
+                fontsize=8, color=_CHART_INK if totals[user] else _CHART_MUTED)
+
+    ax.set_xlim(0, n_cols + 0.9)
+    ax.set_ylim(n_rows, 0)
+    ax.set_xticks([c + 0.5 for c in range(n_cols)] + [n_cols + 0.45])
+    ax.set_xticklabels([d.strftime("%a\n%d %b") for d in days] + ["Total"],
+                       fontsize=8, color=_CHART_MUTED)
+    ax.xaxis.tick_top()
+    ax.set_yticks([r + 0.5 for r in range(n_rows)])
+    ax.set_yticklabels(rows, fontsize=8, color=_CHART_INK)
+    ax.tick_params(length=0)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    fig.suptitle(f"Commits per day, last {n_cols} days (all branches)",
+                 x=0.02, ha="left", fontsize=10, color=_CHART_INK, fontweight="bold")
+    legend = [Patch(color=_CHART_ZERO, label="0")] + [
+        Patch(color=f, label=label) for _, f, _, label in _CHART_BINS
+    ]
+    fig.legend(handles=legend, loc="lower left", bbox_to_anchor=(0.01, 0.0),
+               ncol=len(legend), frameon=False, fontsize=7, labelcolor=_CHART_MUTED,
+               handlelength=1.2, handleheight=1.0, columnspacing=1.2)
+    fig.tight_layout(rect=(0, 0.05, 1, 0.97))
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", facecolor=_CHART_SURFACE)
+    plt.close(fig)
+    return buf.getvalue()
 
 
 def _apply_skip_credits(state_user, skip_dates_iso):
@@ -577,6 +736,11 @@ def run_monitor():
                 lines.append(f"- {repo_name} @ `{branch}`: {n}")
             lines.append("")
 
+    headers = _api_headers()
+    # Runs for everyone: feeds both the heatmap and the inactive list below.
+    newest, daily = _scan_lookback(headers, members, end_d, LOOKBACK_DAYS)
+    chart_days = [end_d - timedelta(days=LOOKBACK_DAYS - i) for i in range(LOOKBACK_DAYS)]
+
     lines.append("**Developers who need to commit more:**")
     inactive = sorted(
         (u for u in members if meta_by_user[u]["unique_commits_in_window"] == 0),
@@ -585,33 +749,55 @@ def run_monitor():
     if not inactive:
         lines.append("(none)")
     else:
-        headers = _api_headers()
         today = _today_work_day()
-        scanned = _scan_last_commit_dates(headers, inactive, end_d, LOOKBACK_DAYS)
-        entries = []
+        never = []
         logger.info("Searching default branches for %d inactive members", len(inactive))
         for user in inactive:
             logger.info("search last commit: %s", user)
-            known = state[user].get("last_commit_date")
             candidates = [
-                d for d in (scanned.get(user), _search_last_commit_date(headers, user)) if d
+                i for i in (
+                    newest.get(user),
+                    _search_last_commit(headers, user),
+                    _state_commit_info(state[user]),
+                ) if i
             ]
-            if known:
-                candidates.append(datetime.fromisoformat(known).date())
-            last = max(candidates) if candidates else None
-            if last:
-                state[user]["last_commit_date"] = last.isoformat()
-            entries.append(f"{_display_name(user)} ({_days_ago_text(last, today)})")
-        lines.append(", ".join(entries))
+            # Newest day wins; on a tie prefer the entry that knows its branch.
+            last = (
+                max(candidates, key=lambda i: (i["date"], bool(i.get("branch"))))
+                if candidates else None
+            )
+            if not last:
+                never.append(user)
+                continue
+            state[user]["last_commit_date"] = last["date"].isoformat()
+            state[user]["last_commit"] = {
+                "date": last["date"].isoformat(),
+                "repo": last.get("repo"),
+                "branch": last.get("branch"),
+                "message": last.get("message"),
+                "url": last.get("url"),
+            }
+            lines.append(_last_commit_line(user, last, today))
+        if never:
+            lines.append("")
+            lines.append(
+                "**No commits found:** " + ", ".join(_display_name(u) for u in never)
+            )
 
     with open("state.json", "w") as f:
         json.dump(state, f, indent=4)
 
-    return "\n".join(lines)
+    chart = build_activity_chart(members, daily, chart_days)
+    if chart:
+        with open("activity.png", "wb") as f:
+            f.write(chart)
+
+    return "\n".join(lines), chart
 
 
-def post_to_discord(report, url):
-    """Post the report to a Discord webhook, split under Discord's 2000-char cap."""
+def post_to_discord(report, url, chart=None):
+    """Post the report to a Discord webhook, split under Discord's 2000-char cap,
+    then the activity chart as an image attachment."""
     chunks, current = [], ""
     for line in report.strip().splitlines():
         if current and len(current) + len(line) + 1 > 1900:
@@ -632,6 +818,17 @@ def post_to_discord(report, url):
         res.raise_for_status()
     logger.info("Posted report to Discord in %d message(s)", len(chunks))
 
+    if chart:
+        time.sleep(1)
+        res = requests.post(
+            url,
+            data={"payload_json": json.dumps({"username": "Webuddhist commit checker"})},
+            files={"files[0]": ("activity.png", chart, "image/png")},
+            timeout=60,
+        )
+        res.raise_for_status()
+        logger.info("Posted activity chart to Discord")
+
 
 if __name__ == "__main__":
     _lvl = os.environ.get("MONITOR_LOG_LEVEL", "INFO").upper()
@@ -646,7 +843,7 @@ if __name__ == "__main__":
     )
     _fmt.converter = time.gmtime
     _handler.setFormatter(_fmt)
-    # Logs also go to stderr so hosted runners (Render, Actions) show them;
+    # Logs also go to stderr so Render's log view shows them;
     # stdout stays the report alone.
     _stderr = logging.StreamHandler(sys.stderr)
     _stderr.setFormatter(_fmt)
@@ -655,10 +852,10 @@ if __name__ == "__main__":
         handlers=[_handler, _stderr],
         force=True,
     )
-    report = run_monitor()
+    report, chart = run_monitor()
     print(report, flush=True)
     webhook = os.environ.get("DISCORD_WEBHOOK_URL")
     if webhook:
-        post_to_discord(report, webhook)
+        post_to_discord(report, webhook, chart)
     else:
         logger.info("DISCORD_WEBHOOK_URL not set; report not posted")

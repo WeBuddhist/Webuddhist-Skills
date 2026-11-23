@@ -11,10 +11,15 @@
    - `GITHUB_TEAM`: Team whose members are tracked (default `openpecha-dev-team`).
    - `MONITOR_LOOKBACK_DAYS`: How many days back to scan all branches for "last commit N days ago" (default 5). Older than that falls back to default-branch search.
 
+## Report
+- **Active**: everyone with commits on the previous day, per repo and branch.
+- **Developers who need to commit more**: one line each with their last commit — days ago, date, repo @ branch, message and a link.
+- **Activity chart**: a PNG heatmap (developer × day, commit counts, last `MONITOR_LOOKBACK_DAYS` days, all branches) posted after the text and saved as `activity.png`. Needs `matplotlib`; without it the text report still goes out.
+
 ## Automation
 - **Render cron job** (`render.yaml` at the repo root): runs `python monitor.py` daily at `30 4 * * *` UTC (10:00 IST) and posts to Discord. Logs show in the Render dashboard.
 - Render has no persistent disk for cron jobs, so `state.json` starts empty each run. The report does not depend on it: "last commit N days ago" comes from the all-branch lookback scan and GitHub search.
-- **GitHub Action** (`.github/workflows/sanity-check-github-tracker.yml`): manual backup only, via Actions > Run workflow. Uses the `ORG_MONITOR_TOKEN` and `DISCORD_WEBHOOK_URL` repo secrets.
+- To run it by hand, use **Trigger Run** on the Render cron job, or run `python monitor.py` locally with the variables above set.
 
 ## Commands
 - `/team-status`: Runs the script immediately to show current standings.

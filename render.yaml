@@ -1,6 +1,5 @@
 services:
-  # Daily commit check, posted to Discord. Replaces the GitHub Actions schedule,
-  # which was starting runs 8-10 hours late.
+  # Daily commit check, posted to Discord.
   - type: cron
     name: sanity-check-github-tracker
     runtime: python
