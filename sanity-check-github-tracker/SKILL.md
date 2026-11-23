@@ -17,7 +17,7 @@
 - **Activity chart**: a PNG heatmap (developer × day, commit counts, last `MONITOR_LOOKBACK_DAYS` days, all branches) posted after the text and saved as `activity.png`. Needs `matplotlib`; without it the text report still goes out.
 
 ## Automation
-- **Render cron job** (`render.yaml` at the repo root): runs `python monitor.py` daily at `30 4 * * *` UTC (10:00 IST) and posts to Discord. Logs show in the Render dashboard.
+- **Render cron job** (`render.yaml` at the repo root): runs `python monitor.py` daily at `30 3 * * *` UTC (09:00 IST) and posts to Discord. Logs show in the Render dashboard.
 - Render has no persistent disk for cron jobs, so `state.json` starts empty each run. The report does not depend on it: "last commit N days ago" comes from the all-branch lookback scan and GitHub search.
 - To run it by hand, use **Trigger Run** on the Render cron job, or run `python monitor.py` locally with the variables above set.
 
