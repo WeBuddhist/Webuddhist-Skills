@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import sys
 import time
 from collections import defaultdict
 from pathlib import Path
@@ -599,6 +600,29 @@ def run_monitor():
     return "\n".join(lines)
 
 
+def post_to_discord(report, url):
+    """Post the report to a Discord webhook, split under Discord's 2000-char cap."""
+    chunks, current = [], ""
+    for line in report.strip().splitlines():
+        if current and len(current) + len(line) + 1 > 1900:
+            chunks.append(current)
+            current = ""
+        current += line + "\n"
+    if current:
+        chunks.append(current)
+
+    for i, chunk in enumerate(chunks):
+        if i:
+            time.sleep(1)
+        res = requests.post(
+            url,
+            json={"username": "Webuddhist commit checker", "content": chunk},
+            timeout=30,
+        )
+        res.raise_for_status()
+    logger.info("Posted report to Discord in %d message(s)", len(chunks))
+
+
 if __name__ == "__main__":
     _lvl = os.environ.get("MONITOR_LOG_LEVEL", "INFO").upper()
     _log_file = Path(
@@ -612,9 +636,19 @@ if __name__ == "__main__":
     )
     _fmt.converter = time.gmtime
     _handler.setFormatter(_fmt)
+    # Logs also go to stderr so hosted runners (Render, Actions) show them;
+    # stdout stays the report alone.
+    _stderr = logging.StreamHandler(sys.stderr)
+    _stderr.setFormatter(_fmt)
     logging.basicConfig(
         level=getattr(logging, _lvl, logging.INFO),
-        handlers=[_handler],
+        handlers=[_handler, _stderr],
         force=True,
     )
-    print(run_monitor())
+    report = run_monitor()
+    print(report, flush=True)
+    webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+    if webhook:
+        post_to_discord(report, webhook)
+    else:
+        logger.info("DISCORD_WEBHOOK_URL not set; report not posted")

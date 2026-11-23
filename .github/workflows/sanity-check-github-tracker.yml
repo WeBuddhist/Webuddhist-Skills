@@ -1,9 +1,8 @@
 name: Sanity Check GitHub Tracker
 
+# The daily run is a Render cron job (render.yaml at the repo root). This
+# workflow stays as a manual backup: Actions > Run workflow.
 on:
-  schedule:
-    # 10:00 IST = 04:30 UTC
-    - cron: "30 4 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -30,7 +29,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install requests
+        run: pip install -r requirements.txt
 
       # state.json keeps cumulative skip counts between runs.
       - name: Restore state
@@ -71,41 +70,14 @@ jobs:
           # The default Actions token cannot read org team members or other
           # repos, so this needs a PAT with repo + read:org scope.
           GITHUB_TOKEN: ${{ secrets.ORG_MONITOR_TOKEN }}
+          # monitor.py posts the report to Discord itself when this is set.
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           python monitor.py | tee report.txt
           {
             echo '## Webuddhist commit checker'
             cat report.txt
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Post to Discord
-        env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        shell: python
-        run: |
-          import os, time, requests
-
-          url = os.environ["DISCORD_WEBHOOK_URL"]
-          report = open("report.txt", encoding="utf-8").read().strip()
-
-          # Discord caps content at 2000 chars.
-          chunks, current = [], ""
-          for line in report.splitlines():
-              if len(current) + len(line) + 1 > 1900:
-                  chunks.append(current)
-                  current = ""
-              current += line + "\n"
-          if current:
-              chunks.append(current)
-
-          for chunk in chunks:
-              r = requests.post(
-                  url,
-                  json={"username": "Webuddhist commit checker", "content": chunk},
-                  timeout=30,
-              )
-              r.raise_for_status()
-              time.sleep(1)
 
       - name: Save state
         if: success()

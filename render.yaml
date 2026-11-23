@@ -1,0 +1,28 @@
+services:
+  # Daily commit check, posted to Discord. Replaces the GitHub Actions schedule,
+  # which was starting runs 8-10 hours late.
+  - type: cron
+    name: sanity-check-github-tracker
+    runtime: python
+    plan: starter
+    rootDir: sanity-check-github-tracker/scripts
+    buildCommand: pip install -r requirements.txt
+    startCommand: python monitor.py
+    # Render cron schedules are UTC: 04:30 UTC = 10:00 IST.
+    schedule: "30 4 * * *"
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: GITHUB_ORG
+        value: WeBuddhist
+      - key: GITHUB_ORGS
+        value: WeBuddhist,OpenPecha,WeBuddhist-Data
+      - key: GITHUB_TEAM
+        value: openpecha-dev-team
+      - key: MONITOR_LOOKBACK_DAYS
+        value: "30"
+      # Secrets: Render asks for these when the Blueprint is created.
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
