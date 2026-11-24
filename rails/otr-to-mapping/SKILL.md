@@ -26,8 +26,8 @@ $SOURCES/Audio/<text>/otr/<name>.otr                        ← timestamps
 $SOURCE_TEXTS/<text>.md                                     ← block ids ^id (the note's root_text)
 ```
 
-The script ships with `library-upload` (it uses that skill's audio parser and linter):
-`$SKILLS/library-upload/scripts/otr_to_mapping.py`.
+The script is a vault script, next to the audio parser and linter it uses
+(`$SYSTEM/scripts/linter-audio/`): `$SYSTEM/scripts/otr_to_mapping.py` (from rails-template).
 
 ## Output
 
@@ -58,7 +58,7 @@ Start/End in `m:ss.sss`. Untimed rows (title, colophon) stay, empty.
 ## Procedure
 
 1. Dry run — what would change, for every note with an .otr (or one text folder):
-   `python $SKILLS/library-upload/scripts/otr_to_mapping.py --live ["$SOURCES/Audio/<text>"]`
+   `python $SYSTEM/scripts/otr_to_mapping.py --live ["$SOURCES/Audio/<text>"]`
    (`--live` checks every timed block's text in the root's live edition on dev, which is
    where the cue spans come from; use it unless offline).
 2. Write: `… otr_to_mapping.py --live --write "$SOURCES/Audio/<text>"`. A note already up to
