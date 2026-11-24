@@ -12,7 +12,7 @@
    - `MONITOR_LOOKBACK_DAYS`: How many days back to scan all branches for "last commit N days ago" (default 5). Older than that falls back to default-branch search.
 
 ## Report
-- **Active**: everyone with commits on the previous day, per repo and branch.
+- **Active**: everyone with commits on the previous day, per repo and branch. The top 3 repo @ branch rows show; any more sit in a "+N more" Discord spoiler (click to reveal).
 - **Developers who need to commit more**: one line each with their last commit — days ago, date, repo @ branch, message and a link.
 - **Activity chart**: a PNG heatmap (developer × day, commit counts, last `MONITOR_LOOKBACK_DAYS` days, all branches) posted after the text and saved as `activity.png`. Needs `matplotlib`; without it the text report still goes out.
 

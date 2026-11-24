@@ -505,6 +505,10 @@ def _search_last_commit(headers, user):
     return max(found, key=lambda i: i["when"]) if found else None
 
 
+# Repo @ branch rows listed per active developer before the rest go in a spoiler.
+_ACTIVE_ROWS_SHOWN = 3
+
+
 def _plural(n, word):
     return f"{n} {word}" if n == 1 else f"{n} {word}s"
 
@@ -731,9 +735,16 @@ def run_monitor():
     else:
         for user, total, bd in active:
             lines.append(f"{_display_name(user)} — {_plural(total, 'commit')}")
-            for repo, branch, n in _breakdown_rows_sorted_by_commit_count(bd):
-                repo_name = repo if len(ORGS) > 1 else repo.split("/", 1)[-1]
-                lines.append(f"- {repo_name} @ `{branch}`: {n}")
+            rows = [
+                f"{repo if len(ORGS) > 1 else repo.split('/', 1)[-1]} @ `{branch}`: {n}"
+                for repo, branch, n in _breakdown_rows_sorted_by_commit_count(bd)
+            ]
+            lines.extend(f"- {row}" for row in rows[:_ACTIVE_ROWS_SHOWN])
+            rest = rows[_ACTIVE_ROWS_SHOWN:]
+            if rest:
+                # Discord has no collapsible text; a spoiler is click-to-reveal.
+                # Kept on one line so the 2000-char splitter can't cut it in half.
+                lines.append(f"- +{len(rest)} more: ||" + " · ".join(rest) + "||")
             lines.append("")
 
     headers = _api_headers()
